@@ -1,0 +1,12 @@
+[package]
+name = "cacheguard"
+version = "0.1.0"
+edition = "2018"
+authors = ["Khashayar Fereidani"]
+description = "A lightweight cache guard that pads atomics to prevent false sharing in concurrent Rust systems"
+repository = "https://github.com/fereidani/cacheguard"
+documentation = "https://docs.rs/cacheguard"
+keywords = ["cache", "padding", "atomics"]
+categories = ["concurrency", "data-structures", "no-std"]
+license = "MIT"
+readme = "README.md"
