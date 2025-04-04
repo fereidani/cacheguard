@@ -17,7 +17,12 @@ def get_arch_list():
     targets = targets_output.splitlines()
 
     archs = set()
+    checked = {}
     for target in targets:
+        arch_name = target.split("-")[0]
+        if arch_name in checked:
+            continue
+        checked[arch_name] = True
         cfg_output = subprocess.run(
             ["rustc", "+nightly", "--print=cfg", f"--target={target}"],
             capture_output=True, text=True, check=True
@@ -37,29 +42,29 @@ arch_list.sort()
 print(arch_list)
 
 
-# upper rules have higher priority
-cache_size_regex = {
-    256: [
-        "^s390x.*"
-    ],
-    128: [
-        "^mips64.*",  # it is up to 128 bytes but 32 is more common
+# cache size rules ordered based on priority
+cache_size_rules = [
+    (256, ["^s390x.*"]),
+    (128, [
+        # it is up to 128 bytes but 32 is more common
+        "^mips64.*",
         "^arm64.*",
         "^powerpc.*",
         "^aarch64.*",
         "^x86_64.*",
-        "^wasm.*",  # most common for modern cpus supporting wasm is 128
+        # most common for modern cpus supporting wasm is 128
+        "^wasm.*",
         "^amdgpu.*",
         "^nvptx64.*",
-    ],
-    64: [
+    ]),
+    (64, [
         "^sparc64.*",
         "^bpf.*",
         "^csky.*",
         "^loongarch64.*",
         "^x86.*",
-    ],
-    32: [
+    ]),
+    (32, [
         "^mips.*",
         "^hexagon.*",
         "^sparc.*",
@@ -67,20 +72,20 @@ cache_size_regex = {
         "^avr.*",
         "^xtensa.*",
         "^riscv.*",
-    ],
-    16: [
-        "^m68k.*"
-    ],
-    8: [
-        "^msp430.*"
-    ]
-}
+    ]),
+    (16, ["^m68k.*"]),
+    (8,  ["^msp430.*"]),
+]
+
+for i in range(len(cache_size_rules)):
+    size, patterns = cache_size_rules[i]
+    cache_size_rules[i] = (size, [re.compile(pattern) for pattern in patterns])
 
 
 def get_cache_size(arch):
-    for size, regex_list in cache_size_regex.items():
-        for regex in regex_list:
-            if re.match(regex, arch):
+    for size, patterns in cache_size_rules:
+        for pattern in patterns:
+            if pattern.match(arch):
                 return size
     print(f"Warning: No cache size rule found for {arch}, defaulting to 64")
     return 64
@@ -96,7 +101,7 @@ for arch in arch_list:
 
 header = """#![no_std]
 // for target_archs that are nightly only
-#![allow(unexpected_cfgs)] 
+#![allow(unexpected_cfgs)]
 use core::{fmt, ops::Deref, ops::DerefMut};
 #[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]"""
 
